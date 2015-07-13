@@ -1,0 +1,480 @@
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE TEST
+OBJECT MODULE PLACED IN test.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE test.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /************************************************************************************/
+   2          /* 实验平台：品诺电子C8051F340核心板
+   3          /* 功能说明：1、串口波特率设置为115200，使用外部晶振22.1184MHz；
+   4                                   2、按下S2则发送从串口发送"ABC"，同时点亮LED2；
+   5                                   3、按下S3则发送从串口发送"abc"，同时点亮LED3。
+   6          /* 作者信息：品诺电子(http://free-design.taobao.com)
+   7          /************************************************************************************/
+   8          
+   9          #include "c8051f340.h"
+  10          #include "flash.h"
+  11          #include "def.h"
+  12          #include <string.h>
+  13          
+  14          #define BAUDRATE 115200         //串口波特率，需要更改波特率时，在此更改数值即可
+  15          #define SYSCLK 22118400UL       //采用外部晶振时，系统的时钟频率为22118400hz
+  16          
+  17          #define BUFF_SIZE  100
+  18          
+  19          //===============================================================================================
+  20          typedef struct
+  21          {
+  22                  uint8 PhoneNumber[12];  //11位号码+'\0'
+  23                  uint8 Text[20]; //短信长度，先预设为20,实际短信可以70个汉字140个英文字母
+  24          }SMS_t;
+  25          
+  26          //===============================================================================================
+  27          static void Delay (unsigned int x);
+  28          static void delay_1ms(unsigned int z);
+  29          void InitOSC(void);
+  30          void InitUart0(void);
+  31          
+  32          uint8 sim900a_send_cmd(uint8 *cmd, uint8 *ack, uint16 waittime);
+  33          void send_byte(uint8 byte);
+  34          uint8 AnalyzeMsg(uint8 index, uint8 mode, SMS_t *psms);
+  35          
+  36          //===============================================================================================
+  37          
+  38          sbit S2=P2^0;                   // S ='0' 表示按键被按下
+  39          sbit S3=P2^1;                   // S ='0' 表示按键被按下
+  40          
+  41          sbit LED2=P2^2;                 // LED ='1' 表示亮灯，LED ='0' 表示灭灯
+  42          sbit LED3=P2^3;                 // LED ='1' 表示亮灯，LED ='0' 表示灭灯
+  43          
+  44          bit uartSending=0;              //全局变量，标志串口是否正处于发送中(忙状态)
+  45          
+  46          uint8 xdata UART_RX_BUFF[BUFF_SIZE];
+  47          uint8 xdata BuffIn = 0;
+  48          
+  49          uint8 SMCnt[3];         //短信标号
+  50          SMS_t mysms;
+  51          
+  52          //AT指令
+  53          uint8 code ATD[] = {"ATD"};
+  54          uint8 code AT[] = {"AT\r"}; 
+  55          uint8 code AT_CMGF[] = {"AT+CMGF=1\r"};
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 2   
+
+  56          uint8 code AT_CSCS[] = {"AT+CSCS=\"GSM\"\r"};
+  57          uint8 code AT_CNMI[] = {"AT+CNMI=2,1,\r"};
+  58          uint8 code AT_Phone[] = {"AT+CMGS=\"15261172865\"\r"};
+  59          uint8 code AT_Msg[]={'h','e','l','l','o',0x1A,'\r','\0'};
+  60          uint8 code AT_CMGR[]={"AT+CMGR="};
+  61          //===============================================================================================
+  62          void Delay (unsigned int x)
+  63          {
+  64   1              while(--x);
+  65   1      }
+  66          
+  67          void delay_1ms(unsigned int z) //延时函数
+  68          {
+  69   1              unsigned int x,y;
+  70   1              for(x=z;x>0;x--)
+  71   1                      for(y=110;y>0;y--);
+  72   1      }
+  73          
+  74          void resetbuf(void)
+  75          {
+  76   1              uint8 i;
+  77   1              for(i = 0; i < BUFF_SIZE; i++)
+  78   1              {
+  79   2                       UART_RX_BUFF[i] = 0;
+  80   2              }
+  81   1              BuffIn = 0;
+  82   1      }
+  83          /********************************************************************
+  84          函数功能：将外部晶振配置为系统时钟。
+  85          入口参数：无。
+  86          返    回：无。
+  87          备    注：无。
+  88          ********************************************************************/
+  89          void InitOSC(void)
+  90          {
+  91   1              P0MDIN &= ~0xC0;                //P0.6, P0.7配置为模拟输入，用作外部晶振
+  92   1              P0SKIP |=  0xC0;                //交叉开关跳过P0.6, P0.7脚，用作外部晶振
+  93   1      
+  94   1              OSCXCN = (0x60 | 7);    //配置为外部晶体不分频，配置晶体频率为10M~30M
+  95   1              Delay(1024);            //等待外部晶振开始工作，不可省略一定要做的步骤
+  96   1              while (!(OSCXCN & 0x80));       //一直读取标志位，直到外部晶体稳定
+  97   1              RSTSRC = 0x06;                  // Enable missing clock detector and VDD Monitor reset
+  98   1      
+  99   1              CLKSEL = 0x01;                  //选择外部晶体为时钟
+ 100   1              OSCICN = 0x00;                  //关闭内部晶振
+ 101   1      }
+ 102          //////////////////////////Pino Electronics///////////////////////////
+ 103          
+ 104          /********************************************************************
+ 105          函数功能：初始化串口0。
+ 106          入口参数：无。
+ 107          返    回：无。
+ 108          备    注：无。
+ 109          ********************************************************************/
+ 110          void InitUart0(void)
+ 111          {
+ 112   1              if (SYSCLK/BAUDRATE/2/256 < 1) {
+ 113   2                      TH1 = -(SYSCLK/BAUDRATE/2);
+ 114   2                      CKCON &= ~0x0B;                  // T1M = 1; SCA1:0 = xx
+ 115   2                      CKCON |=  0x08;
+ 116   2              } else if (SYSCLK/BAUDRATE/2/256 < 4) {
+ 117   2                      TH1 = -(SYSCLK/BAUDRATE/2/4);
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 3   
+
+ 118   2                      CKCON &= ~0x0B;                  // T1M = 0; SCA1:0 = 01
+ 119   2                      CKCON |=  0x01;
+ 120   2              } else if (SYSCLK/BAUDRATE/2/256 < 12) {
+ 121   2                      TH1 = -(SYSCLK/BAUDRATE/2/12);
+ 122   2                      CKCON &= ~0x0B;                  // T1M = 0; SCA1:0 = 00
+ 123   2              } else {
+ 124   2                      TH1 = -(SYSCLK/BAUDRATE/2/48);
+ 125   2                      CKCON &= ~0x0B;                  // T1M = 0; SCA1:0 = 10
+ 126   2                      CKCON |=  0x02;
+ 127   2              }
+ 128   1      
+ 129   1              /*初始化定时器1*/
+ 130   1              TMOD|=0x20;                     //定时器1工作在8位自动重装方式
+ 131   1              TL1=0;
+ 132   1              TR1=1;
+ 133   1              
+ 134   1              /*初始化串口*/
+ 135   1              S0MODE=0;                       //8位的UART工作方式
+ 136   1              REN0=1;                         //接收允许
+ 137   1              PS0=1;                          //为了在中断里输出字符，串口的优先级设为最高
+ 138   1              ES0=1;                          //打开串口中断
+ 139   1      
+ 140   1              /*配置引脚*/
+ 141   1              P0MDOUT |= 0x10;        //串口TXD引脚配置为推挽输出方式，用于UART发送端
+ 142   1              XBR0|=0x01;                     //在外设连接寄存器0上把UART0连接到引脚P0.4和P0.5
+ 143   1      }
+ 144          
+ 145          uint8 sim900a_send_cmd(uint8 *cmd, uint8 *ack, uint16 waittime)
+ 146          {
+ 147   1              uint8 res = 0;
+ 148   1      
+ 149   1              resetbuf();
+ 150   1      
+ 151   1              while((*cmd) != '\0')
+ 152   1              {
+ 153   2                      send_byte(*cmd);
+ 154   2                      cmd++;
+ 155   2              }
+ 156   1              if(ack&&waittime)
+ 157   1              {
+ 158   2                      while(--waittime)
+ 159   2                      {
+ 160   3                              delay_1ms(10);
+ 161   3                              if(strstr(UART_RX_BUFF,ack))
+ 162   3                              {
+ 163   4                                      break;
+ 164   4                              }
+ 165   3                      }
+ 166   2                      if(waittime == 0)
+ 167   2                              res = 1;
+ 168   2              }
+ 169   1              return res;
+ 170   1      }
+ 171          
+ 172          
+ 173          /*
+ 174          *
+ 175          *send a byte to uart
+ 176          */
+ 177          void send_byte(uint8 byte)
+ 178          {
+ 179   1              while(uartSending); //等待发送完毕
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 4   
+
+ 180   1              SBUF0=byte; //将数据写入到串口缓冲
+ 181   1              uartSending=1;   //设置发送标志 
+ 182   1      }
+ 183          
+ 184          
+ 185          /*
+ 186          *@fn    SendEnMessage
+ 187          *
+ 188          *@brief
+ 189          *
+ 190          *@param
+ 191          *
+ 192          *@return
+ 193          */
+ 194          
+ 195          void SendEnMessage(uint8 *phonenumber, uint8 *pText)
+ 196          {
+ 197   1      /*
+ 198   1      AT+CSCS="GSM"
+ 199   1      AT+CMGF=1
+ 200   1      AT+CMGS="15261172865"
+ 201   1      短信内容，以十六进制0x1A结束。
+ 202   1      */
+ 203   1              uint8 textend[3] = {0x1A,'\r','\0'};
+ 204   1              uint8 pnend[3] = {'"','\r','\0'};
+ 205   1      
+ 206   1              uint8 at_cmgs[22] = {"At+CMGS=\""};
+ 207   1      
+ 208   1              sim900a_send_cmd(AT_CSCS,"OK",50);
+ 209   1              sim900a_send_cmd("AT+CMGF=1\r","OK",50);
+ 210   1      
+ 211   1              strcat(at_cmgs,phonenumber);
+ 212   1              strcat(at_cmgs,pnend);
+ 213   1              sim900a_send_cmd(at_cmgs,"OK",50);
+ 214   1      
+ 215   1              strcat(pText,textend);
+ 216   1              sim900a_send_cmd(pText,"OK",50);
+ 217   1      }
+ 218          
+ 219          
+ 220          /*
+ 221          *@fn    CallUp
+ 222          *
+ 223          *@brief    给指定号码打电话   
+ 224          *
+ 225          *@param    
+ 226          *
+ 227          *@return
+ 228          *
+ 229          */
+ 230          /*
+ 231          void CallUp(uint8 *phonenumber)
+ 232          {
+ 233                  uint8 atd[17]= {'A','T','D','\0'};
+ 234          
+ 235                  strcat(atd,phonenumber);
+ 236                  strcat(atd,";\r");
+ 237                  
+ 238                  sim900a_send_cmd(atd,"OK",50);
+ 239          }
+ 240          */
+ 241          /*
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 5   
+
+ 242          *@fn    AnalyzeMsg
+ 243          *
+ 244          *@brief:读取短信内容
+ 245          *
+ 246          *@param    index-短信编号
+ 247          *@param    mode-读取短信模式，0-正常，1-不改变指定消息记录状态
+ 248          *@param    psms,短信分析内容存储数据结构
+ 249          *
+ 250          *@return:       0-读取成功，1-读取失败 
+ 251          */
+ 252          uint8 AnalyzeMsg(uint8 index, uint8 mode, SMS_t *psms)
+ 253          {
+ 254   1      /*提取的短信内容格式如下：
+ 255   1      AT+CMGR=13,0
+ 256   1      
+ 257   1      +CMGR: "REC READ","+8615261172865","","15/07/11,20:52:52+32"
+ 258   1      hello
+ 259   1      */
+ 260   1              //AT+CMGR=xxx,0\r\0    长度：15
+ 261   1              uint8 at_cmgr[15] = {"AT+CMGR="};
+ 262   1              uint8 len[4];   //可能为3位数
+ 263   1              uint8 m[2];
+ 264   1              uint8 res = 0,i = 0;
+ 265   1              uint8 * ptr;
+ 266   1      
+ 267   1              len[0] = index/100 + 48; len[1] = (index/10)%10 + 48; len[2] = index%10 + 48; len[3] = '\0';
+ 268   1              m[0] = mode + 48; m[1] = '\0';
+ 269   1      
+ 270   1              strcat(at_cmgr,len);    //添加短信标识
+ 271   1              strcat(at_cmgr,",");
+ 272   1              strcat(at_cmgr,m);      //mode
+ 273   1              strcat(at_cmgr,"\r");   //这里不能使用单引号
+ 274   1      
+ 275   1              sim900a_send_cmd(at_cmgr,"OK",200);
+ 276   1              
+ 277   1              //等待sim900a返回短信内容
+ 278   1              while(1)
+ 279   1              {
+ 280   2                      if(strstr(UART_RX_BUFF,"OK"))
+ 281   2                      {
+ 282   3                              break;
+ 283   3                      }
+ 284   2                      if(strstr(UART_RX_BUFF,"ERROR"))
+ 285   2                      {
+ 286   3                              res = 1;
+ 287   3                              break;
+ 288   3                      }
+ 289   2              }
+ 290   1      
+ 291   1              if(res != 1)
+ 292   1              {
+ 293   2                      //获取号码
+ 294   2                      ptr = strstr(UART_RX_BUFF,","); //这里是按照我的标准，输入完整的查询短信命令
+ 295   2                      ptr = strstr(ptr+1,",");
+ 296   2                      ptr += 5;
+ 297   2              
+ 298   2                      //这里暂时只考虑了11位的手机号码的情况。对于错误输入没有进行判断,鲁棒性不佳
+ 299   2                      for(i = 0; i < 11; i++)
+ 300   2                      {
+ 301   3                              *(psms->PhoneNumber + i) = *(ptr + i);  
+ 302   3                      }
+ 303   2                      *(psms->PhoneNumber + i) = '\0';
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 6   
+
+ 304   2      
+ 305   2                      //获取短信内容  
+ 306   2                      ptr = strrchr(UART_RX_BUFF,'"');        //查找UART中最后一个“号的位置
+ 307   2                      ptr += 3;i = 0;
+ 308   2                      
+ 309   2                      //这里对于短信的内容也没有进行一个严格的输入判断，存在风险
+ 310   2                      while(*(ptr + i) != 0x0D)
+ 311   2                      {
+ 312   3                              *(psms->Text + i) = *(ptr + i);
+ 313   3                              i++;
+ 314   3                      }
+ 315   2                      *(psms->Text + i) = '\0';
+ 316   2              }
+ 317   1              return res;     
+ 318   1      }
+ 319          
+ 320          int main(void)
+ 321          {
+ 322   1              bit key2_down_flag=0;
+ 323   1              bit key3_down_flag=0;
+ 324   1              uint8 i = 0,getmsg = 0;
+ 325   1              uint8 *smflag = NULL;
+ 326   1              
+ 327   1      
+ 328   1              //uint8 callflag = 0;
+ 329   1              
+ 330   1      
+ 331   1      
+ 332   1              PCA0MD &= ~0x40;        //WDTE = 0 关闭看门狗，上电默认打开
+ 333   1              EA=0;
+ 334   1      
+ 335   1              /*配置引脚*/
+ 336   1              P2MDOUT=0xC;            //P2.2和P2.3设为推挽输出方式，用于点亮LED
+ 337   1              XBR1= 0x40;                     //打开交叉开关，使能弱上拉，要使GPIO生效，必须打开交叉开关
+ 338   1      
+ 339   1              InitOSC();                      //外部晶振配置
+ 340   1              InitUart0();            //初始化串口
+ 341   1              EA=1;                           //允许所有中断  
+ 342   1              
+ 343   1              
+ 344   1              sim900a_send_cmd(AT_CMGF,"OK",50);//设置为文本模式       
+ 345   1              sim900a_send_cmd(AT_CSCS,"OK",50);//设置GSM字符集
+ 346   1              sim900a_send_cmd(AT_CNMI,"OK",50);//设置新消息提示
+ 347   1              delay_1ms(500); 
+ 348   1              
+ 349   1              //readmsg();
+ 350   1              //resetbuf();
+ 351   1      
+ 352   1              AnalyzeMsg(40,0,&mysms);
+ 353   1              SendEnMessage(mysms.PhoneNumber,mysms.Text);    //发送一条英文短信
+ 354   1              while (1)
+ 355   1              {
+ 356   2      
+ 357   2                       #if 1
+ 358   2                      //检测是否有短信发送过来
+ 359   2                      //提示内容eg:+CMTI: "SM",14
+ 360   2                      if(getmsg == 0)
+ 361   2                      {
+ 362   3                              smflag = strstr(UART_RX_BUFF,"SM");
+ 363   3                              delay_1ms(100);
+ 364   3                              SMCnt[0] = *(smflag + 4);
+ 365   3                              SMCnt[1] = *(smflag + 5);
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 7   
+
+ 366   3                              SMCnt[2] = '\0';
+ 367   3                              
+ 368   3                      }
+ 369   2                      if(smflag != 0)
+ 370   2                      {
+ 371   3                              getmsg = 1;
+ 372   3                              //程序启动，LED3闪烁提示
+ 373   3                              LED3 ^= 1;
+ 374   3                              delay_1ms(1000);
+ 375   3                      }
+ 376   2                      #endif
+ 377   2                      //按键s2
+ 378   2                      if (S2 == 0)
+ 379   2                      {
+ 380   3                              Delay(3000);
+ 381   3                              if(S2 == 0)
+ 382   3                              {
+ 383   4                                      if(key2_down_flag == 0)
+ 384   4                                      {
+ 385   5                                              LED2^=1;
+ 386   5                                              key2_down_flag = 1;
+ 387   5                                      }
+ 388   4                              } 
+ 389   3                      }
+ 390   2                      else
+ 391   2                      {
+ 392   3                              key2_down_flag = 0;
+ 393   3                      }
+ 394   2      
+ 395   2                      //按键s3
+ 396   2                      if (S3 == 0)
+ 397   2                      {
+ 398   3                              Delay(3000);
+ 399   3                              if(S3 == 0)
+ 400   3                              {
+ 401   4                                      if(key3_down_flag == 0)
+ 402   4                                      {
+ 403   5                                              for(i = 0; i < 10; i++)
+ 404   5                                              {
+ 405   6                                                      send_byte(UART_RX_BUFF[i]);
+ 406   6                                              }
+ 407   5                                              i = 0;
+ 408   5                                              key3_down_flag = 1;
+ 409   5                                      }
+ 410   4                              }
+ 411   3                      }
+ 412   2                      else
+ 413   2                      {
+ 414   3                              key3_down_flag = 0;
+ 415   3                      }
+ 416   2              }// end of while(1)   
+ 417   1              
+ 418   1              return 0;                 
+ 419   1      }
+ 420          //////////////////////////Pino Electronics///////////////////////////
+ 421          
+ 422          /********************************************************************
+ 423          函数功能：串口中断处理。
+ 424          入口参数：无。
+ 425          返    回：无。
+ 426          备    注：无。
+ 427          ********************************************************************/
+C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 8   
+
+ 428          /*串口中断服务程序*/
+ 429          void Uart0ISR(void) interrupt 4 
+ 430          {
+ 431   1              if(RI0 == 1)
+ 432   1              {
+ 433   2                      RI0 = 0;
+ 434   2                      UART_RX_BUFF[BuffIn] =  SBUF0;
+ 435   2                      BuffIn = (BuffIn + 1)%BUFF_SIZE;
+ 436   2              }
+ 437   1              if(TI0 ==1)     //发送数据
+ 438   1              {
+ 439   2                      TI0 = 0;
+ 440   2                      uartSending = 0;
+ 441   2              }
+ 442   1      }                    
+ 443          //////////////////////////Pino Electronics///////////////////////////
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1287    ----
+   CONSTANT SIZE    =    158    ----
+   XDATA SIZE       =    101    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     35      79
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      1       2
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

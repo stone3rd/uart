@@ -1,4 +1,4 @@
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 1   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 1   
 
 
 C51 COMPILER V9.01, COMPILATION OF MODULE TEST
@@ -16,8 +16,8 @@ line level    source
    7          /************************************************************************************/
    8          
    9          #include "c8051f340.h"
-  10          #include "flash.h"
-  11          #include "def.h"
+  10          #include "def.h"
+  11          #include "flash.h"
   12          #include <string.h>
   13          
   14          #define BAUDRATE 115200         //串口波特率，需要更改波特率时，在此更改数值即可
@@ -62,7 +62,7 @@ line level    source
   53          uint8 code ATD[] = {"ATD"};
   54          uint8 code AT[] = {"AT\r"}; 
   55          uint8 code AT_CMGF[] = {"AT+CMGF=1\r"};
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 2   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 2   
 
   56          uint8 code AT_CSCS[] = {"AT+CSCS=\"GSM\"\r"};
   57          uint8 code AT_CNMI[] = {"AT+CNMI=2,1,\r"};
@@ -126,7 +126,7 @@ line level    source
  115   2                      CKCON |=  0x08;
  116   2              } else if (SYSCLK/BAUDRATE/2/256 < 4) {
  117   2                      TH1 = -(SYSCLK/BAUDRATE/2/4);
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 3   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 3   
 
  118   2                      CKCON &= ~0x0B;                  // T1M = 0; SCA1:0 = 01
  119   2                      CKCON |=  0x01;
@@ -190,7 +190,7 @@ line level    source
  177          void send_byte(uint8 byte)
  178          {
  179   1              while(uartSending); //等待发送完毕
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 4   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 4   
 
  180   1              SBUF0=byte; //将数据写入到串口缓冲
  181   1              uartSending=1;   //设置发送标志 
@@ -254,7 +254,7 @@ line level    source
  239          }
  240          */
  241          /*
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 5   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 5   
 
  242          *@fn    AnalyzeMsg
  243          *
@@ -318,7 +318,7 @@ line level    source
  301   3                              *(psms->PhoneNumber + i) = *(ptr + i);  
  302   3                      }
  303   2                      *(psms->PhoneNumber + i) = '\0';
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 6   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 6   
 
  304   2      
  305   2                      //获取短信内容  
@@ -382,7 +382,7 @@ line level    source
  363   3                              delay_1ms(100);
  364   3                              SMCnt[0] = *(smflag + 4);
  365   3                              SMCnt[1] = *(smflag + 5);
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 7   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 7   
 
  366   3                              SMCnt[2] = '\0';
  367   3                              
@@ -446,7 +446,7 @@ line level    source
  425          返    回：无。
  426          备    注：无。
  427          ********************************************************************/
-C51 COMPILER V9.01   TEST                                                                  07/14/2015 00:34:33 PAGE 8   
+C51 COMPILER V9.01   TEST                                                                  07/18/2015 15:47:55 PAGE 8   
 
  428          /*串口中断服务程序*/
  429          void Uart0ISR(void) interrupt 4 

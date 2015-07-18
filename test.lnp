@@ -1,4 +1,5 @@
 "test.obj",
-"STARTUP.obj" 
+"STARTUP.obj",
+"flash.obj" 
 TO "test" 
 RAMSIZE(256) 

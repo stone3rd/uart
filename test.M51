@@ -1,8 +1,8 @@
-BL51 BANKED LINKER/LOCATER V6.22                                                        07/14/2015  00:34:33  PAGE 1
+BL51 BANKED LINKER/LOCATER V6.22                                                        07/18/2015  15:47:55  PAGE 1
 
 
 BL51 BANKED LINKER/LOCATER V6.22, INVOKED BY:
-C:\KEIL\C51\BIN\BL51.EXE test.obj, STARTUP.obj TO test RAMSIZE (256)
+C:\KEIL\C51\BIN\BL51.EXE test.obj, STARTUP.obj, flash.obj TO test RAMSIZE (256)
 
 
 MEMORY MODEL: SMALL
@@ -11,6 +11,7 @@ MEMORY MODEL: SMALL
 INPUT MODULES INCLUDED:
   test.obj (TEST)
   STARTUP.obj (?C_STARTUP)
+  flash.obj (FLASH)
   C:\KEIL\C51\LIB\C51S.LIB (?C_INIT)
   C:\KEIL\C51\LIB\C51S.LIB (?C?COPY)
   C:\KEIL\C51\LIB\C51S.LIB (?C?CLDPTR)
@@ -34,7 +35,10 @@ LINK MAP OF MODULE:  test (TEST)
                     0008H     0018H                  *** GAP ***
             BIT     0020H.0   0000H.2   UNIT         _BIT_GROUP_
             BIT     0020H.2   0000H.1   UNIT         ?BI?TEST
-                    0020H.3   0000H.5                *** GAP ***
+            BIT     0020H.3   0000H.1   UNIT         ?BI?_FLASH_BYTEWRITE?FLASH
+            BIT     0020H.4   0000H.1   UNIT         ?BI?_FLASH_BYTEREAD?FLASH
+            BIT     0020H.5   0000H.1   UNIT         ?BI?_FLASH_PAGEERASE?FLASH
+                    0020H.6   0000H.2                *** GAP ***
             DATA    0021H     003CH     UNIT         _DATA_GROUP_
             DATA    005DH     0023H     UNIT         ?DT?TEST
             IDATA   0080H     0001H     UNIT         ?STACK
@@ -55,17 +59,20 @@ LINK MAP OF MODULE:  test (TEST)
             CODE    06BFH     0082H     UNIT         ?PR?_SIM900A_SEND_CMD?TEST
             CODE    0741H     0082H     UNIT         ?PR?_STRSTR?STRSTR
             CODE    07C3H     005CH     UNIT         ?PR?UART0ISR?TEST
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 2
+
+
             CODE    081FH     0058H     UNIT         ?PR?_STRCAT?STRCAT
             CODE    0877H     0056H     UNIT         ?PR?_STRRCHR?STRRCHR
-            CODE    08CDH     001FH     UNIT         ?PR?INITOSC?TEST
-            CODE    08ECH     001EH     UNIT         ?PR?_DELAY_1MS?TEST
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 2
-
-
-            CODE    090AH     0010H     UNIT         ?PR?RESETBUF?TEST
-            CODE    091AH     000AH     UNIT         ?PR?_DELAY?TEST
-            CODE    0924H     0008H     UNIT         ?PR?_SEND_BYTE?TEST
-            CODE    092CH     0007H     UNIT         ?C_INITSEG
+            CODE    08CDH     0029H     UNIT         ?PR?_FLASH_BYTEWRITE?FLASH
+            CODE    08F6H     0029H     UNIT         ?PR?_FLASH_PAGEERASE?FLASH
+            CODE    091FH     001FH     UNIT         ?PR?INITOSC?TEST
+            CODE    093EH     001EH     UNIT         ?PR?_DELAY_1MS?TEST
+            CODE    095CH     0012H     UNIT         ?PR?_FLASH_BYTEREAD?FLASH
+            CODE    096EH     0010H     UNIT         ?PR?RESETBUF?TEST
+            CODE    097EH     000AH     UNIT         ?PR?_DELAY?TEST
+            CODE    0988H     0008H     UNIT         ?PR?_SEND_BYTE?TEST
+            CODE    0990H     0007H     UNIT         ?C_INITSEG
 
 
 
@@ -112,15 +119,15 @@ SEGMENT                               BIT_GROUP          DATA_GROUP
 
 ?PR?_STRCAT?STRCAT                 -----    -----      0048H    0009H
 
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 3
+
+
 ?PR?_STRRCHR?STRRCHR               -----    -----      0045H    0006H
 
 ?PR?_SENDENMESSAGE?TEST            -----    -----      0026H    0022H
   +--> ?CO?TEST
   +--> ?PR?_SIM900A_SEND_CMD?TEST
   +--> ?PR?_STRCAT?STRCAT
-
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 3
-
 
 
 
@@ -134,7 +141,7 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:0026H         PUBLIC        _AnalyzeMsg
   D:00A0H         PUBLIC        P2
   B:00A0H.0       PUBLIC        S2
-  C:08ECH         SYMBOL        _delay_1ms
+  C:093EH         SYMBOL        _delay_1ms
   B:00A0H.1       PUBLIC        S3
   B:00A8H.7       PUBLIC        EA
   B:00A0H.2       PUBLIC        LED2
@@ -164,7 +171,7 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   D:00A9H         PUBLIC        CLKSEL
   D:00B2H         PUBLIC        OSCICN
   C:0608H         SYMBOL        _?ix1000
-  C:0924H         PUBLIC        _send_byte
+  C:0988H         PUBLIC        _send_byte
   C:060BH         SYMBOL        _?ix1001
   C:060EH         SYMBOL        _?ix1002
   C:0624H         SYMBOL        _?ix1003
@@ -172,6 +179,9 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   B:00A8H.4       PUBLIC        ES0
   B:0098H.0       PUBLIC        RI0
   X:0001H         PUBLIC        UART_RX_BUFF
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 4
+
+
   B:0098H.1       PUBLIC        TI0
   D:008DH         PUBLIC        TH1
   D:00B1H         PUBLIC        OSCXCN
@@ -179,24 +189,21 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   B:00B8H.4       PUBLIC        PS0
   B:0088H.6       PUBLIC        TR1
   C:05B0H         PUBLIC        ATD
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 4
-
-
   D:0099H         PUBLIC        SBUF0
   D:00EFH         PUBLIC        RSTSRC
-  C:090AH         PUBLIC        resetbuf
+  C:096EH         PUBLIC        resetbuf
   C:0003H         PUBLIC        InitUart0
   C:06D4H         PUBLIC        _sim900a_send_cmd
   D:008EH         PUBLIC        CKCON
-  C:091AH         SYMBOL        _Delay
+  C:097EH         SYMBOL        _Delay
   C:05E0H         PUBLIC        AT_Phone
-  C:08CDH         PUBLIC        InitOSC
+  C:091FH         PUBLIC        InitOSC
   -------         PROC          _DELAY
   D:0006H         SYMBOL        x
-  C:091AH         LINE#         62
-  C:091AH         LINE#         63
-  C:091AH         LINE#         64
-  C:0923H         LINE#         65
+  C:097EH         LINE#         62
+  C:097EH         LINE#         63
+  C:097EH         LINE#         64
+  C:0987H         LINE#         65
   -------         ENDPROC       _DELAY
   -------         PROC          _DELAY_1MS
   D:0006H         SYMBOL        z
@@ -204,44 +211,44 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   D:0006H         SYMBOL        x
   D:0004H         SYMBOL        y
   -------         ENDDO         
-  C:08ECH         LINE#         67
-  C:08ECH         LINE#         68
-  C:08ECH         LINE#         70
-  C:08F5H         LINE#         71
-  C:0909H         LINE#         72
+  C:093EH         LINE#         67
+  C:093EH         LINE#         68
+  C:093EH         LINE#         70
+  C:0947H         LINE#         71
+  C:095BH         LINE#         72
   -------         ENDPROC       _DELAY_1MS
   -------         PROC          RESETBUF
   -------         DO            
   D:0007H         SYMBOL        i
   -------         ENDDO         
-  C:090AH         LINE#         74
-  C:090AH         LINE#         75
-  C:090AH         LINE#         77
-  C:090AH         LINE#         78
-  C:090AH         LINE#         79
-  C:0914H         LINE#         80
-  C:0914H         LINE#         81
-  C:0919H         LINE#         82
+  C:096EH         LINE#         74
+  C:096EH         LINE#         75
+  C:096EH         LINE#         77
+  C:096EH         LINE#         78
+  C:096EH         LINE#         79
+  C:0978H         LINE#         80
+  C:0978H         LINE#         81
+  C:097DH         LINE#         82
   -------         ENDPROC       RESETBUF
   -------         PROC          INITOSC
-  C:08CDH         LINE#         89
-  C:08CDH         LINE#         90
-  C:08CDH         LINE#         91
-  C:08D0H         LINE#         92
-  C:08D3H         LINE#         94
-  C:08D6H         LINE#         95
-  C:08DDH         LINE#         96
-  C:08E2H         LINE#         97
-  C:08E5H         LINE#         99
-  C:08E8H         LINE#         100
-  C:08EBH         LINE#         101
+  C:091FH         LINE#         89
+  C:091FH         LINE#         90
+  C:091FH         LINE#         91
+  C:0922H         LINE#         92
+  C:0925H         LINE#         94
+  C:0928H         LINE#         95
+  C:092FH         LINE#         96
+  C:0934H         LINE#         97
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 5
+
+
+  C:0937H         LINE#         99
+  C:093AH         LINE#         100
+  C:093DH         LINE#         101
   -------         ENDPROC       INITOSC
   -------         PROC          INITUART0
   C:0003H         LINE#         110
   C:0003H         LINE#         111
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 5
-
-
   C:0003H         LINE#         112
   C:0003H         LINE#         113
   C:0006H         LINE#         114
@@ -292,6 +299,9 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:070AH         LINE#         158
   C:0717H         LINE#         159
   C:0717H         LINE#         160
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 6
+
+
   C:071EH         LINE#         161
   C:0735H         LINE#         162
   C:0735H         LINE#         163
@@ -299,20 +309,17 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:0735H         LINE#         166
   C:073BH         LINE#         167
   C:073EH         LINE#         168
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 6
-
-
   C:073EH         LINE#         169
   C:0740H         LINE#         170
   -------         ENDPROC       _SIM900A_SEND_CMD
   -------         PROC          _SEND_BYTE
   D:0007H         SYMBOL        byte
-  C:0924H         LINE#         177
-  C:0924H         LINE#         178
-  C:0924H         LINE#         179
-  C:0927H         LINE#         180
-  C:0929H         LINE#         181
-  C:092BH         LINE#         182
+  C:0988H         LINE#         177
+  C:0988H         LINE#         178
+  C:0988H         LINE#         179
+  C:098BH         LINE#         180
+  C:098DH         LINE#         181
+  C:098FH         LINE#         182
   -------         ENDPROC       _SEND_BYTE
   -------         PROC          _SENDENMESSAGE
   D:0026H         SYMBOL        phonenumber
@@ -352,6 +359,9 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:0030H         LINE#         261
   C:0043H         LINE#         264
   C:0048H         LINE#         267
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 7
+
+
   C:0071H         LINE#         268
   C:007AH         LINE#         270
   C:008AH         LINE#         271
@@ -359,9 +369,6 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:00AEH         LINE#         273
   C:00C0H         LINE#         275
   C:00D8H         LINE#         278
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 7
-
-
   C:00D8H         LINE#         279
   C:00D8H         LINE#         280
   C:00EFH         LINE#         281
@@ -412,6 +419,9 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:03C4H         LINE#         332
   C:03C7H         LINE#         333
   C:03C9H         LINE#         336
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 8
+
+
   C:03CCH         LINE#         337
   C:03CFH         LINE#         339
   C:03D2H         LINE#         340
@@ -419,9 +429,6 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:03D7H         LINE#         344
   C:03EFH         LINE#         345
   C:03F2H         LINE#         346
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 8
-
-
   C:040AH         LINE#         347
   C:0411H         LINE#         352
   C:041EH         LINE#         353
@@ -472,6 +479,9 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:04CDH         LINE#         409
   C:04CDH         LINE#         410
   C:04CDH         LINE#         411
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 9
+
+
   C:04D0H         LINE#         413
   C:04D0H         LINE#         414
   C:04D2H         LINE#         415
@@ -479,9 +489,6 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   -------         ENDPROC       MAIN
   -------         PROC          UART0ISR
   C:07C3H         LINE#         429
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 9
-
-
   C:07DAH         LINE#         431
   C:07DDH         LINE#         432
   C:07DDH         LINE#         433
@@ -531,6 +538,88 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:063CH         LINE#         155
   -------         ENDMOD        ?C_STARTUP
 
+  -------         MODULE        FLASH
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 10
+
+
+  C:0000H         SYMBOL        _ICE_DUMMY_
+  B:00A8H.7       PUBLIC        EA
+  D:008FH         PUBLIC        PSCTL
+  D:00FFH         PUBLIC        VDM0CN
+  C:08F6H         PUBLIC        _FLASH_PageErase
+  D:00EFH         PUBLIC        RSTSRC
+  C:095CH         PUBLIC        _FLASH_ByteRead
+  C:08CDH         PUBLIC        _FLASH_ByteWrite
+  D:00B7H         PUBLIC        FLKEY
+  -------         PROC          _FLASH_BYTEWRITE
+  D:0006H         SYMBOL        addr
+  D:0005H         SYMBOL        byte
+  -------         DO            
+  B:0020H.3       SYMBOL        EA_SAVE
+  D:0082H         SYMBOL        pwrite
+  -------         ENDDO         
+  C:08CDH         LINE#         9
+  C:08CDH         LINE#         10
+  C:08CDH         LINE#         11
+  C:08D1H         LINE#         14
+  C:08D3H         LINE#         16
+  C:08D6H         LINE#         18
+  C:08D9H         LINE#         20
+  C:08DDH         LINE#         22
+  C:08E0H         LINE#         23
+  C:08E3H         LINE#         24
+  C:08E6H         LINE#         26
+  C:08E9H         LINE#         28
+  C:08ECH         LINE#         30
+  C:08EEH         LINE#         32
+  C:08F1H         LINE#         34
+  C:08F5H         LINE#         35
+  -------         ENDPROC       _FLASH_BYTEWRITE
+  -------         PROC          _FLASH_BYTEREAD
+  D:0006H         SYMBOL        addr
+  -------         DO            
+  B:0020H.4       SYMBOL        EA_SAVE
+  D:0082H         SYMBOL        pread
+  D:0007H         SYMBOL        byte
+  -------         ENDDO         
+  C:095CH         LINE#         37
+  C:095CH         LINE#         38
+  C:095CH         LINE#         39
+  C:0960H         LINE#         43
+  C:0962H         LINE#         45
+  C:0966H         LINE#         47
+  C:0969H         LINE#         49
+  C:096DH         LINE#         51
+  C:096DH         LINE#         52
+  -------         ENDPROC       _FLASH_BYTEREAD
+  -------         PROC          _FLASH_PAGEERASE
+  D:0006H         SYMBOL        addr
+  -------         DO            
+  B:0020H.5       SYMBOL        EA_SAVE
+  D:0082H         SYMBOL        pwrite
+  -------         ENDDO         
+  C:08F6H         LINE#         54
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 11
+
+
+  C:08F6H         LINE#         55
+  C:08F6H         LINE#         56
+  C:08FAH         LINE#         59
+  C:08FCH         LINE#         61
+  C:08FFH         LINE#         63
+  C:0902H         LINE#         65
+  C:0906H         LINE#         67
+  C:0909H         LINE#         68
+  C:090CH         LINE#         69
+  C:090FH         LINE#         71
+  C:0912H         LINE#         73
+  C:0915H         LINE#         74
+  C:0917H         LINE#         76
+  C:091AH         LINE#         78
+  C:091EH         LINE#         79
+  -------         ENDPROC       _FLASH_PAGEERASE
+  -------         ENDMOD        FLASH
+
   -------         MODULE        ?C?COPY
   C:02C0H         PUBLIC        ?C?COPY
   -------         ENDMOD        ?C?COPY
@@ -538,9 +627,6 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   -------         MODULE        ?C?CLDPTR
   C:02E6H         PUBLIC        ?C?CLDPTR
   -------         ENDMOD        ?C?CLDPTR
-
-BL51 BANKED LINKER/LOCATER V6.22                                                      07/14/2015  00:34:33  PAGE 10
-
 
   -------         MODULE        ?C?CLDOPTR
   C:02FFH         PUBLIC        ?C?CLDOPTR
@@ -572,5 +658,17 @@ SYMBOL TABLE OF MODULE:  test (TEST)
   C:0741H         PUBLIC        _strstr
   -------         ENDMOD        STRSTR
 
-Program Size: data=104.3 xdata=101 code=2355
-LINK/LOCATE RUN COMPLETE.  0 WARNING(S),  0 ERROR(S)
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+BL51 BANKED LINKER/LOCATER V6.22                                                      07/18/2015  15:47:55  PAGE 12
+
+
+    SEGMENT: ?PR?_FLASH_BYTEWRITE?FLASH
+
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_FLASH_BYTEREAD?FLASH
+
+*** WARNING L16: UNCALLED SEGMENT, IGNORED FOR OVERLAY PROCESS
+    SEGMENT: ?PR?_FLASH_PAGEERASE?FLASH
+
+Program Size: data=104.6 xdata=101 code=2455
+LINK/LOCATE RUN COMPLETE.  3 WARNING(S),  0 ERROR(S)

@@ -34,6 +34,18 @@ void FLASH_ByteWrite(unsigned int addr, char byte)
 	EA = EA_SAVE;
 }
 
+void FLASH_StringWrite(unsigned int addr, char *str, char len)
+{
+	unsigned int addroffset = addr;
+	unsigned char i = 0;
+
+	for(i = 0; i < len; i++)
+	{
+		FLASH_ByteWrite(addroffset,*(str + i));
+		addroffset++;
+	}
+}
+
 unsigned char FLASH_ByteRead(unsigned int addr)
 {
 	bit EA_SAVE = EA;

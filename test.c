@@ -10,11 +10,23 @@
 #include "def.h"
 #include "flash.h"
 #include <string.h>
+#include <stdlib.h>
 
 #define	BAUDRATE 115200 	//串口波特率，需要更改波特率时，在此更改数值即可
 #define SYSCLK 22118400UL	//采用外部晶振时，系统的时钟频率为22118400hz
+//#define SYSCLK  12000000UL
+
 
 #define BUFF_SIZE  100
+
+#define PNCNT  1	//现在存储的认识的手机号的数量
+
+//主循环定义的一些状态
+#define WAITING		0	//等待状态
+#define GETNEWMSG	1	//等待收到新的消息
+#define MSGCHECK    2	//对收到的信息进行检测
+#define SENDMSG		3	//发送短消息
+
 
 //===============================================================================================
 typedef struct
@@ -46,8 +58,10 @@ bit uartSending=0;	 	//全局变量，标志串口是否正处于发送中(忙状态)
 uint8 xdata UART_RX_BUFF[BUFF_SIZE];
 uint8 xdata BuffIn = 0;
 
-uint8 SMCnt[3];		//短信标号
-SMS_t mysms;
+uint8 xdata SMCnt[3];		//短信标号
+SMS_t xdata mysms;
+
+uint8 xdata FlashPN[12];
 
 //AT指令
 uint8 code ATD[] = {"ATD"};
@@ -58,6 +72,14 @@ uint8 code AT_CNMI[] = {"AT+CNMI=2,1,\r"};
 uint8 code AT_Phone[] = {"AT+CMGS=\"15261172865\"\r"};
 uint8 code AT_Msg[]={'h','e','l','l','o',0x1A,'\r','\0'};
 uint8 code AT_CMGR[]={"AT+CMGR="};
+
+//表格
+uint8 code PhoneNumber1[] = {"15261172865"};	//预存的电话号码1
+
+uint8 * xdata PNList[PNCNT] = {PhoneNumber1};
+
+//一些标志位
+uint8 xdata MainStatus = WAITING;
 //===============================================================================================
 void Delay (unsigned int x)
 {
@@ -146,9 +168,36 @@ void InitUart0(void)
 	XBR0|=0x01;			//在外设连接寄存器0上把UART0连接到引脚P0.4和P0.5
 }
 
+
+/*
+*@fn 	sim900a_send_cmd
+*
+*@brief	   给sim900a发送一条指令
+*
+*@param	   cmd:要发送到指令
+*@param	   ack:指令返回的ack，OK,ERROR
+*@param	   waittime:指令需要等待的大致时间，单位10ms
+*
+*@return   0:发送成功，1:发送失败
+*/
 uint8 sim900a_send_cmd(uint8 *cmd, uint8 *ack, uint16 waittime)
 {
 	uint8 res = 0;
+	uint8 i = 0;
+
+	//对cmd的检测,是否已'\r''\0'结尾。
+	//如果这里输入的为一个不带'\0'结尾的字符，会出现什么情况？
+	//如果输入的为'\0'，会出现什么情况？
+	while(*(cmd + i) != '\0')
+	{
+		i++;
+	}
+	if(*(cmd + i - 1) != '\r')
+	{
+		res = 1;
+		return res;
+	}
+
 
 	resetbuf();
 
@@ -321,12 +370,42 @@ hello
 	return res;	
 }
 
+/*
+*@fn  CheckPN_MSG
+*
+*@brief	 检测手机号码是否符合要求
+*
+*@param	  手机号码
+*
+*@return    0:成功，1：失败
+*/
+uint8 CheckPN_MSG(uint8 *phonenumber)
+{
+	uint8 res = 0;
+	uint8 i,cmpres = 1;
+
+	//手机号比对
+	for(i = 0; i < PNCNT; i++)
+	{
+		cmpres = strcmp(phonenumber,PNList[i]);
+		if(cmpres == 0)
+			break;
+	}
+
+	if(cmpres != 0)
+	{
+		res = 1;
+	}
+
+	return res;
+}
 int main(void)
 {
 	bit key2_down_flag=0;
 	bit key3_down_flag=0;
-	uint8 i = 0,getmsg = 0;
+	uint8 i = 0,tmpres;
 	uint8 *smflag = NULL;
+	uint8 xdata array[] = {"I'm sim900a"};
 	
 
 	//uint8 callflag = 0;
@@ -350,34 +429,61 @@ int main(void)
 	sim900a_send_cmd(AT_CNMI,"OK",50);//设置新消息提示
 	delay_1ms(500);	
 	
-	//readmsg();
-	//resetbuf();
+	
 
-	AnalyzeMsg(40,0,&mysms);
-	SendEnMessage(mysms.PhoneNumber,mysms.Text);	//发送一条英文短信
+	//AnalyzeMsg(40,0,&mysms);
+	//SendEnMessage(mysms.PhoneNumber,mysms.Text);	//发送一条英文短信
 	while (1)
 	{
+		 
+		switch(MainStatus)
+		{
+			case WAITING://检测是否有短信发送过来  //提示内容eg:+CMTI: "SM",14
+				smflag = strstr(UART_RX_BUFF,"SM");
+				delay_1ms(100);
+				if(smflag != NULL)
+				{
+					MainStatus = GETNEWMSG;
+				}
+				break;
+			case GETNEWMSG:
+				SMCnt[0] = *(smflag + 4);//记录下短信编号
+				SMCnt[1] = *(smflag + 5);
+				SMCnt[2] = '\0';
+				AnalyzeMsg((uint8)atoi(SMCnt),0,&mysms);
+				MainStatus = MSGCHECK;
+				break;
+			case MSGCHECK:
+				tmpres = CheckPN_MSG(mysms.PhoneNumber);
+				
+				if(tmpres == 0)
+				{
+					//存储电话号码到flash
+					FLASH_PageErase(0x8000);
+					FLASH_StringWrite(0x8000,mysms.Text,sizeof(mysms.Text));
+				}
+				else
+				{
+					mysms.Text[0] = 'E';mysms.Text[1] = 'R';mysms.Text[2] = 'R';mysms.Text[3] = 'O';mysms.Text[4] = 'R';mysms.Text[5] = '\0';
+				}
 
-		 #if 1
-		//检测是否有短信发送过来
-		//提示内容eg:+CMTI: "SM",14
-		if(getmsg == 0)
-		{
-			smflag = strstr(UART_RX_BUFF,"SM");
-			delay_1ms(100);
-			SMCnt[0] = *(smflag + 4);
-			SMCnt[1] = *(smflag + 5);
-			SMCnt[2] = '\0';
-			
+				MainStatus = SENDMSG;
+				break;
+			case SENDMSG:
+				//SendEnMessage(mysms.PhoneNumber,mysms.Text);	//发送一条英文短信
+				for(i = 0; i < 12; i++)
+				{
+					FlashPN[i] = FLASH_ByteRead(0x8000+i);
+				}
+				FlashPN[i] = '\0';
+				SendEnMessage(FlashPN,array);
+				MainStatus = WAITING;
+				resetbuf();
+				break;
+			default:
+				break;
 		}
-		if(smflag != 0)
-		{
-			getmsg = 1;
-			//程序启动，LED3闪烁提示
-			LED3 ^= 1;
-			delay_1ms(1000);
-		}
-		#endif
+		 
 		//按键s2
 		if (S2 == 0)
 		{
@@ -387,6 +493,14 @@ int main(void)
 				if(key2_down_flag == 0)
 				{
 					LED2^=1;
+					
+					for(i = 0; i < 12; i++)
+					{
+						FlashPN[i] = FLASH_ByteRead(0x8000+i);
+					}
+					FlashPN[i] = '\0';
+					SendEnMessage(FlashPN,array);
+					
 					key2_down_flag = 1;
 				}
 			} 

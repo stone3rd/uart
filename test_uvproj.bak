@@ -356,11 +356,6 @@
               <FileType>2</FileType>
               <FilePath>.\STARTUP.A51</FilePath>
             </File>
-            <File>
-              <FileName>flash.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\flash.c</FilePath>
-            </File>
           </Files>
         </Group>
       </Groups>

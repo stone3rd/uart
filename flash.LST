@@ -1,4 +1,4 @@
-C51 COMPILER V9.01   FLASH                                                                 07/18/2015 15:47:55 PAGE 1   
+C51 COMPILER V9.01   FLASH                                                                 07/19/2015 09:56:25 PAGE 1   
 
 
 C51 COMPILER V9.01, COMPILATION OF MODULE FLASH
@@ -43,60 +43,72 @@ line level    source
   34   1              EA = EA_SAVE;
   35   1      }
   36          
-  37          unsigned char FLASH_ByteRead(unsigned int addr)
+  37          void FLASH_StringWrite(unsigned int addr, char *str, char len)
   38          {
-  39   1              bit EA_SAVE = EA;
-  40   1              char code *data pread;
-  41   1              unsigned char byte;
-  42   1              
-  43   1              EA = 0;
-  44   1              
-  45   1              pread = (char code *)addr;
-  46   1              
-  47   1              byte = *pread;
-  48   1              
-  49   1              EA = EA_SAVE;
-  50   1              
-  51   1              return byte;
-  52   1      }
-  53          
-  54          void FLASH_PageErase(unsigned int addr)
-  55          {
-C51 COMPILER V9.01   FLASH                                                                 07/18/2015 15:47:55 PAGE 2   
+  39   1              unsigned int addroffset = addr;
+  40   1              unsigned char i = 0;
+  41   1      
+  42   1              for(i = 0; i < len; i++)
+  43   1              {
+  44   2                      FLASH_ByteWrite(addroffset,*(str + i));
+  45   2                      addroffset++;
+  46   2              }
+  47   1      }
+  48          
+  49          unsigned char FLASH_ByteRead(unsigned int addr)
+  50          {
+  51   1              bit EA_SAVE = EA;
+  52   1              char code *data pread;
+  53   1              unsigned char byte;
+  54   1              
+  55   1              EA = 0;
+C51 COMPILER V9.01   FLASH                                                                 07/19/2015 09:56:25 PAGE 2   
 
-  56   1              bit EA_SAVE = EA;
-  57   1              char xdata *data pwrite;
+  56   1              
+  57   1              pread = (char code *)addr;
   58   1              
-  59   1              EA = 0;
+  59   1              byte = *pread;
   60   1              
-  61   1              VDM0CN = 0x80;
+  61   1              EA = EA_SAVE;
   62   1              
-  63   1              RSTSRC = 0x02;
-  64   1              
-  65   1              pwrite = (char xdata *)addr;
-  66   1              
-  67   1              FLKEY = 0xA5;
-  68   1              FLKEY = 0xF1;
-  69   1              PSCTL |= 0x03;
+  63   1              return byte;
+  64   1      }
+  65          
+  66          void FLASH_PageErase(unsigned int addr)
+  67          {
+  68   1              bit EA_SAVE = EA;
+  69   1              char xdata *data pwrite;
   70   1              
-  71   1              VDM0CN = 0x80;
+  71   1              EA = 0;
   72   1              
-  73   1              RSTSRC = 0x02;
-  74   1              *pwrite = 0;
-  75   1              
-  76   1              PSCTL &= ~0x03;
-  77   1              
-  78   1              EA= EA_SAVE;
-  79   1      }
-  80          
+  73   1              VDM0CN = 0x80;
+  74   1              
+  75   1              RSTSRC = 0x02;
+  76   1              
+  77   1              pwrite = (char xdata *)addr;
+  78   1              
+  79   1              FLKEY = 0xA5;
+  80   1              FLKEY = 0xF1;
+  81   1              PSCTL |= 0x03;
+  82   1              
+  83   1              VDM0CN = 0x80;
+  84   1              
+  85   1              RSTSRC = 0x02;
+  86   1              *pwrite = 0;
+  87   1              
+  88   1              PSCTL &= ~0x03;
+  89   1              
+  90   1              EA= EA_SAVE;
+  91   1      }
+  92          
 
 
 MODULE INFORMATION:   STATIC OVERLAYABLE
-   CODE SIZE        =    100    ----
+   CODE SIZE        =    171    ----
    CONSTANT SIZE    =   ----    ----
    XDATA SIZE       =   ----    ----
    PDATA SIZE       =   ----    ----
-   DATA SIZE        =   ----    ----
+   DATA SIZE        =   ----       9
    IDATA SIZE       =   ----    ----
    BIT SIZE         =   ----       3
 END OF MODULE INFORMATION.
